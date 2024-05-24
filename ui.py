@@ -1,18 +1,20 @@
+import os
+import sys
+import base64
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import QMessageBox, QDialog, QFileDialog, QLabel, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy
-from encryption import generate_key, encrypt_file, decrypt_file
-from cryptography.fernet import Fernet
-import sys
-import os
-import hashlib
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 # Define the path to the encrypted files directory
 ENCRYPTED_FILES_DIR = "encrypted_files"
+CONFIG_FILE = os.path.join(os.getenv('APPDATA'), '.config_secure_storage', 'config.dat')
 
 # Create the directory if it doesn't exist
-if not os.path.exists(ENCRYPTED_FILES_DIR):
-    os.makedirs(ENCRYPTED_FILES_DIR)
+if not os.path.exists(os.path.dirname(CONFIG_FILE)):
+    os.makedirs(os.path.dirname(CONFIG_FILE))
 
 class App(QtWidgets.QWidget):
     def __init__(self):
@@ -72,6 +74,7 @@ class App(QtWidgets.QWidget):
         self.copyright_label.setAlignment(QtCore.Qt.AlignCenter)
         self.copyright_label.setFont(QFont('Arial', 10))
         layout.addWidget(self.copyright_label)
+
         self.setLayout(layout)
 
         self.encrypt_button.setVisible(False)
@@ -89,7 +92,7 @@ class App(QtWidgets.QWidget):
         self.setFixedSize(500, 400)  # Adjust the size as needed
 
     def check_password_set(self):
-        return os.path.isfile('config.dat')
+        return os.path.isfile(CONFIG_FILE)
 
     def create_password(self):
         msgBox = QMessageBox()
@@ -105,8 +108,11 @@ class App(QtWidgets.QWidget):
             if password_dialog.exec_() == QtWidgets.QDialog.Accepted:
                 self.password = password_dialog.get_password()
                 if self.password:
-                    hashed_password = hashlib.sha256(self.password.encode()).hexdigest()
-                    with open('config.dat', 'w') as file:
+                    salt = os.urandom(16)
+                    kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1, backend=default_backend())
+                    key = kdf.derive(self.password.encode())
+                    hashed_password = base64.urlsafe_b64encode(salt + key).decode('utf-8')
+                    with open(CONFIG_FILE, 'w') as file:
                         file.write(hashed_password)
                     self.password_set = True
                     self.show_password_tips()
@@ -126,12 +132,11 @@ class App(QtWidgets.QWidget):
     def add_file(self):
         if self.check_password():
             password = self.password_input.text()
-            key = generate_key(password)
-            fernet = Fernet(key)
+            key, salt = self.generate_key(password)
             if self.selected_file:
                 self.encrypt_button.setText("Encrypting...")
                 encrypted_file_path = os.path.join(ENCRYPTED_FILES_DIR, os.path.basename(self.selected_file) + ".encrypted")
-                encrypt_file(self.selected_file, fernet, encrypted_file_path)
+                self.encrypt_file(self.selected_file, key, salt, encrypted_file_path)
                 self.encrypt_button.setText("Encrypt File")
                 QtWidgets.QMessageBox.information(self, "Success", f"File {self.selected_file} encrypted and stored securely.")
                 self.selected_file = None
@@ -140,11 +145,11 @@ class App(QtWidgets.QWidget):
     def retrieve_file(self):
         if self.check_password():
             password = self.password_input.text()
-            key = generate_key(password)
-            fernet = Fernet(key)
+            salt = self.get_salt_from_file(self.selected_file)
+            key = self.generate_key_with_salt(password, salt)
             if self.selected_file:
                 self.decrypt_button.setText("Decrypting...")
-                decrypt_file(self.selected_file, fernet)
+                self.decrypt_file(self.selected_file, key)
                 self.decrypt_button.setText("Decrypt File")
                 QtWidgets.QMessageBox.information(self, "Success", f"File {self.selected_file} decrypted and retrieved.")
                 self.selected_file = None
@@ -152,13 +157,17 @@ class App(QtWidgets.QWidget):
 
     def check_password(self):
         entered_password = self.password_input.text()
-        with open('config.dat', 'r') as file:
+        with open(CONFIG_FILE, 'r') as file:
             hashed_password = file.readline().strip()
-            entered_password_hash = hashlib.sha256(entered_password.encode()).hexdigest()
-            if entered_password_hash == hashed_password:
+            salt_key = base64.urlsafe_b64decode(hashed_password)
+            salt = salt_key[:16]
+            stored_key = salt_key[16:]
+            kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1, backend=default_backend())
+            try:
+                kdf.verify(entered_password.encode(), stored_key)
                 self.password_attempts = 5
                 return True
-            else:
+            except:
                 self.password_attempts -= 1
                 if self.password_attempts == 0:
                     self.delete_all_encrypted_files()
@@ -168,7 +177,11 @@ class App(QtWidgets.QWidget):
                 return False
 
     def delete_all_encrypted_files(self):
-        pass
+        for filename in os.listdir(ENCRYPTED_FILES_DIR):
+            file_path = os.path.join(ENCRYPTED_FILES_DIR, filename)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        QtWidgets.QMessageBox.critical(self, "Files Deleted", "All encrypted files have been deleted due to too many incorrect password attempts.")
 
     def show_password_tips(self):
         msgBox = QMessageBox()
@@ -178,6 +191,45 @@ class App(QtWidgets.QWidget):
         msgBox.setStandardButtons(QMessageBox.Ok)
         msgBox.setStyleSheet(open('styles/popup_style.css').read())  # Using style for pop-ups
         msgBox.exec_()
+
+    def generate_key(self, password):
+        salt = os.urandom(16)
+        kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1, backend=default_backend())
+        key = kdf.derive(password.encode())
+        return key, salt
+
+    def generate_key_with_salt(self, password, salt):
+        kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1, backend=default_backend())
+        key = kdf.derive(password.encode())
+        return key
+
+    def get_salt_from_file(self, input_file):
+        with open(input_file, 'rb') as f:
+            salt = f.read(16)
+        return salt
+
+    def encrypt_file(self, input_file, key, salt, output_file):
+        iv = os.urandom(12)
+        cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+        with open(input_file, 'rb') as f:
+            plaintext = f.read()
+        ciphertext = encryptor.update(plaintext) + encryptor.finalize()
+        with open(output_file, 'wb') as f:
+            f.write(salt + iv + encryptor.tag + ciphertext)
+
+    def decrypt_file(self, input_file, key):
+        with open(input_file, 'rb') as f:
+            salt = f.read(16)
+            iv = f.read(12)
+            tag = f.read(16)
+            ciphertext = f.read()
+        cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
+        decryptor = cipher.decryptor()
+        decrypted_data = decryptor.update(ciphertext) + decryptor.finalize()
+        output_file = os.path.splitext(input_file)[0]
+        with open(output_file, 'wb') as f:
+            f.write(decrypted_data)
 
 class PasswordDialog(QtWidgets.QDialog):
     def __init__(self):
