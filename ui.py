@@ -41,8 +41,8 @@ class App(QtWidgets.QWidget):
         self.password_input.setFont(QFont('Arial', 12))
 
         self.select_file_button = QtWidgets.QPushButton("Select File")
-        self.encrypt_button = QtWidgets.QPushButton("Add File")
-        self.decrypt_button = QtWidgets.QPushButton("Retrieve File")
+        self.encrypt_button = QtWidgets.QPushButton("Encrypt File")
+        self.decrypt_button = QtWidgets.QPushButton("Decrypt File")
 
         self.select_file_button.clicked.connect(self.select_file)
         self.encrypt_button.clicked.connect(self.add_file)
@@ -68,7 +68,7 @@ class App(QtWidgets.QWidget):
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         # Copyright label
-        self.copyright_label = QLabel("© Kesh 2024")
+        self.copyright_label = QLabel("© Kesh 2024. All rights reserved.")
         self.copyright_label.setAlignment(QtCore.Qt.AlignCenter)
         self.copyright_label.setFont(QFont('Arial', 10))
         layout.addWidget(self.copyright_label)
@@ -130,8 +130,10 @@ class App(QtWidgets.QWidget):
             key = generate_key(password)
             fernet = Fernet(key)
             if self.selected_file:
+                self.encrypt_button.setText("Encrypting...")
                 encrypted_file_path = os.path.join(ENCRYPTED_FILES_DIR, os.path.basename(self.selected_file) + ".encrypted")
                 encrypt_file(self.selected_file, fernet, encrypted_file_path)
+                self.encrypt_button.setText("Encrypt File")
                 QtWidgets.QMessageBox.information(self, "Success", f"File {self.selected_file} encrypted and stored securely.")
                 self.selected_file = None
                 self.encrypt_button.setVisible(False)
@@ -142,7 +144,9 @@ class App(QtWidgets.QWidget):
             key = generate_key(password)
             fernet = Fernet(key)
             if self.selected_file:
+                self.decrypt_button.setText("Decrypting...")
                 decrypt_file(self.selected_file, fernet)
+                self.decrypt_button.setText("Decrypt File")
                 QtWidgets.QMessageBox.information(self, "Success", f"File {self.selected_file} decrypted and retrieved.")
                 self.selected_file = None
                 self.decrypt_button.setVisible(False)
