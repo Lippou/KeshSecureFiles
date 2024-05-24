@@ -1,5 +1,8 @@
 # KeshSecureFiles
 
+<p align="center">
+<a href=""><img src="https://cdn.discordapp.com/attachments/1181896459147296829/1243392705481146368/f1017a64-5568-4578-9031-d812a8881f0e-removebg-preview.png?ex=66514f32&is=664ffdb2&hm=26508babaf4f770c430446167da62d84dc5b49628963b03388124fc9d713f435&" alt="Favicon"></a>
+
 Project Overview:
 
 KeshSecureFiles is a secure file management software designed to protect users' digital assets through robust encryption and password protection features. The application ensures the confidentiality and integrity of files by employing advanced cryptographic algorithms and user authentication mechanisms.
