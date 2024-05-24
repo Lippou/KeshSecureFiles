@@ -72,7 +72,6 @@ class App(QtWidgets.QWidget):
         self.copyright_label.setAlignment(QtCore.Qt.AlignCenter)
         self.copyright_label.setFont(QFont('Arial', 10))
         layout.addWidget(self.copyright_label)
-
         self.setLayout(layout)
 
         self.encrypt_button.setVisible(False)
