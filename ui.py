@@ -1,6 +1,6 @@
-from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QFont, QIcon
-from PyQt5.QtWidgets import QMessageBox, QDialog, QFileDialog, QTextEdit
+from PyQt5.QtWidgets import QMessageBox, QDialog, QFileDialog, QLabel, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy
 from encryption import generate_key, encrypt_file, decrypt_file
 from cryptography.fernet import Fernet
 import sys
@@ -24,11 +24,18 @@ class App(QtWidgets.QWidget):
 
     def initUI(self):
         self.setWindowTitle('Kesh | Secure File Storage')
+        self.setWindowIcon(QIcon('img/favicon.ico'))
         self.setStyleSheet(open('styles/style.css').read())
 
-        layout = QtWidgets.QVBoxLayout()
+        layout = QVBoxLayout()
 
-        self.password_label = QtWidgets.QLabel("Enter Password:")
+        # Add logo
+        logo_label = QLabel(self)
+        logo_pixmap = QtGui.QPixmap('img/favicon.png')
+        logo_label.setPixmap(logo_pixmap)
+        logo_label.setAlignment(QtCore.Qt.AlignCenter)
+
+        self.password_label = QLabel("Enter Password:")
         self.password_input = QtWidgets.QLineEdit()
         self.password_input.setEchoMode(QtWidgets.QLineEdit.Password)
         self.password_input.setFont(QFont('Arial', 12))
@@ -37,20 +44,34 @@ class App(QtWidgets.QWidget):
         self.encrypt_button = QtWidgets.QPushButton("Add File")
         self.decrypt_button = QtWidgets.QPushButton("Retrieve File")
 
-        self.console = QTextEdit()
-        self.console.setReadOnly(True)
-        self.console.setFont(QFont('Courier', 10))
-
         self.select_file_button.clicked.connect(self.select_file)
         self.encrypt_button.clicked.connect(self.add_file)
         self.decrypt_button.clicked.connect(self.retrieve_file)
 
+        layout.addWidget(logo_label)
         layout.addWidget(self.password_label)
         layout.addWidget(self.password_input)
-        layout.addWidget(self.select_file_button)
-        layout.addWidget(self.encrypt_button)
-        layout.addWidget(self.decrypt_button)
-        layout.addWidget(self.console)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.select_file_button)
+        button_layout.addWidget(self.encrypt_button)
+        button_layout.addWidget(self.decrypt_button)
+        layout.addLayout(button_layout)
+
+        # Info label
+        self.info_label = QLabel("Select a file to encrypt or decrypt. Make sure to enter the correct password.")
+        self.info_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.info_label.setFont(QFont('Arial', 10))
+        layout.addWidget(self.info_label)
+
+        # Add spacer
+        layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        # Copyright label
+        self.copyright_label = QLabel("© Kesh 2024")
+        self.copyright_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.copyright_label.setFont(QFont('Arial', 10))
+        layout.addWidget(self.copyright_label)
 
         self.setLayout(layout)
 
@@ -62,22 +83,11 @@ class App(QtWidgets.QWidget):
         if not self.password_set:
             self.create_password()
 
-        # Adjust window size to fit the ASCII art
+        # Adjust window size
         self.adjust_window_size()
 
     def adjust_window_size(self):
-        ascii_art = self.get_ascii_art()
-        lines = ascii_art.split('\n')
-        max_line_length = max(len(line) for line in lines)
-        num_lines = len(lines)
-
-        char_width = self.console.fontMetrics().horizontalAdvance(' ')
-        char_height = self.console.fontMetrics().height()
-
-        window_width = char_width * max_line_length + 40  # Add padding
-        window_height = char_height * num_lines + 200  # Add padding for other UI elements
-
-        self.setFixedSize(window_width, window_height)
+        self.setFixedSize(500, 400)  # Adjust the size as needed
 
     def check_password_set(self):
         return os.path.isfile('config.dat')
@@ -88,7 +98,7 @@ class App(QtWidgets.QWidget):
         msgBox.setWindowTitle("Kesh | Create Password")
         msgBox.setText("Welcome! To secure your files, please create a password.")
         msgBox.setStandardButtons(QMessageBox.Ok)
-        msgBox.setStyleSheet(open('popup_style.css').read())  # Using style for pop-ups
+        msgBox.setStyleSheet(open('styles/popup_style.css').read())  # Using style for pop-ups
         msgBox.exec_()
 
         while not self.password_set:
@@ -122,8 +132,7 @@ class App(QtWidgets.QWidget):
             if self.selected_file:
                 encrypted_file_path = os.path.join(ENCRYPTED_FILES_DIR, os.path.basename(self.selected_file) + ".encrypted")
                 encrypt_file(self.selected_file, fernet, encrypted_file_path)
-                self.console.append(f"File {self.selected_file} encrypted and stored securely.")
-                self.console.append(self.get_ascii_art())
+                QtWidgets.QMessageBox.information(self, "Success", f"File {self.selected_file} encrypted and stored securely.")
                 self.selected_file = None
                 self.encrypt_button.setVisible(False)
 
@@ -134,8 +143,7 @@ class App(QtWidgets.QWidget):
             fernet = Fernet(key)
             if self.selected_file:
                 decrypt_file(self.selected_file, fernet)
-                self.console.append(f"File {self.selected_file} decrypted and retrieved.")
-                self.console.append(self.get_ascii_art())
+                QtWidgets.QMessageBox.information(self, "Success", f"File {self.selected_file} decrypted and retrieved.")
                 self.selected_file = None
                 self.decrypt_button.setVisible(False)
 
@@ -168,35 +176,15 @@ class App(QtWidgets.QWidget):
         msgBox.setStyleSheet(open('styles/popup_style.css').read())  # Using style for pop-ups
         msgBox.exec_()
 
-    def get_ascii_art(self):
-        return """
-         -==================                   
-        +===================+==++====+==-      
-        *====::.:::::::=++==++=:::::::::++     
-        *=*=:-=======*+: .::. :**============: 
-        *+*+=*------++ .+####*. *+-----------* 
-        *+*+*+-----=#-.+*++++#+.-*----------+= 
-        **#+#=----==#+-**++++#*-+*=---------*. 
-        **#*%-====+*:............:*+========#  
-        **#**=====#- .   .::.  ...-*=======++  
-        **##+=====#=.....+%%=.....-*=======*-  
-        *###=====+#=.....:%%:.....-*=======#   
-        *###=====+#=.....+%%+.....-#======+*   
-        *#%#++++++#=.-:::--:-:::-.=#++++++*=   
-        *#%*+++++*#=:*#-=*--*=++*:=#++++++#:   
-        :#%+******#*:=:=-==-=--:=:*#******#    
-          :******##%%############%%#****#*:    
-                """
-
 class PasswordDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Kesh | Create Password')
         self.setFixedSize(300, 150)
 
-        layout = QtWidgets.QVBoxLayout()
+        layout = QVBoxLayout()
 
-        self.password_label = QtWidgets.QLabel("Password:")
+        self.password_label = QLabel("Password:")
         self.password_input = QtWidgets.QLineEdit()
         self.password_input.setEchoMode(QtWidgets.QLineEdit.Password)
         self.password_input.setFont(QFont('Arial', 12))
@@ -212,7 +200,6 @@ class PasswordDialog(QtWidgets.QDialog):
 
     def get_password(self):
         return self.password_input.text()
-
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
