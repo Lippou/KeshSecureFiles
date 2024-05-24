@@ -1,7 +1,7 @@
 # KeshSecureFiles
 
 <p align="center">
-<a href=""><img src="https://cdn.discordapp.com/attachments/1181896459147296829/1243392007989366904/favicon.png?ex=66514e8b&is=664ffd0b&hm=ef25cb017b414281911094270016b70edc0b08632048111accd02578be1d200e&" alt="Favicon"></a>
+<a href=""><img src="https://cdn.discordapp.com/attachments/1181896459147296829/1243392705481146368/f1017a64-5568-4578-9031-d812a8881f0e-removebg-preview.png?ex=66514f32&is=664ffdb2&hm=26508babaf4f770c430446167da62d84dc5b49628963b03388124fc9d713f435&" alt="Favicon"></a>
 
 Project Overview:
 
