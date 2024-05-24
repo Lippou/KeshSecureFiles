@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtGui
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import QMessageBox, QDialog, QFileDialog
 from encryption import generate_key, encrypt_file, decrypt_file
 from cryptography.fernet import Fernet
@@ -20,11 +20,12 @@ class App(QtWidgets.QWidget):
         super().__init__()
         self.password_input = None
         self.password_attempts = 5
+        self.selected_file = None
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('Secure File Storage')
-        self.setGeometry(100, 100, 400, 200)
+        self.setWindowTitle('Kesh | Secure File Storage')
+        self.setFixedSize(400, 200)
         self.setStyleSheet(open('styles/style.css').read())
 
         layout = QtWidgets.QVBoxLayout()
@@ -34,18 +35,24 @@ class App(QtWidgets.QWidget):
         self.password_input.setEchoMode(QtWidgets.QLineEdit.Password)
         self.password_input.setFont(QFont('Arial', 12))
 
+        self.select_file_button = QtWidgets.QPushButton("Select File")
         self.encrypt_button = QtWidgets.QPushButton("Add File")
         self.decrypt_button = QtWidgets.QPushButton("Retrieve File")
 
+        self.select_file_button.clicked.connect(self.select_file)
         self.encrypt_button.clicked.connect(self.add_file)
         self.decrypt_button.clicked.connect(self.retrieve_file)
 
         layout.addWidget(self.password_label)
         layout.addWidget(self.password_input)
+        layout.addWidget(self.select_file_button)
         layout.addWidget(self.encrypt_button)
         layout.addWidget(self.decrypt_button)
 
         self.setLayout(layout)
+
+        self.encrypt_button.setVisible(False)
+        self.decrypt_button.setVisible(False)
 
         self.password_set = self.check_password_set()
 
@@ -58,7 +65,7 @@ class App(QtWidgets.QWidget):
     def create_password(self):
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Information)
-        msgBox.setWindowTitle("Create Password")
+        msgBox.setWindowTitle("Kesh | Create Password")
         msgBox.setText("Welcome! To secure your files, please create a password.")
         msgBox.setStandardButtons(QMessageBox.Ok)
         msgBox.setStyleSheet(open('popup_style.css').read())  # Using style for pop-ups
@@ -75,28 +82,40 @@ class App(QtWidgets.QWidget):
                     self.password_set = True
                     self.show_password_tips()
 
+    def select_file(self):
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select a file", "", "All Files (*);;Encrypted Files (*.encrypted);;Text Files (*.txt)", options=options)
+        if file_path:
+            self.selected_file = file_path
+            if file_path.endswith('.encrypted'):
+                self.encrypt_button.setVisible(False)
+                self.decrypt_button.setVisible(True)
+            else:
+                self.encrypt_button.setVisible(True)
+                self.decrypt_button.setVisible(False)
+
     def add_file(self):
         if self.check_password():
             password = self.password_input.text()
             key = generate_key(password)
             fernet = Fernet(key)
-            options = QFileDialog.Options()
-            file_path, _ = QFileDialog.getOpenFileName(self, "Select a file to secure", "", "All Files (*);;Text Files (*.txt)", options=options)
-            if file_path:
-                encrypted_file_path = os.path.join(ENCRYPTED_FILES_DIR, os.path.basename(file_path) + ".encrypted")
-                encrypt_file(file_path, fernet, encrypted_file_path)
-                QtWidgets.QMessageBox.information(self, "Success", f"File {file_path} encrypted and stored securely.")
+            if self.selected_file:
+                encrypted_file_path = os.path.join(ENCRYPTED_FILES_DIR, os.path.basename(self.selected_file) + ".encrypted")
+                encrypt_file(self.selected_file, fernet, encrypted_file_path)
+                QtWidgets.QMessageBox.information(self, "Success", f"File {self.selected_file} encrypted and stored securely.")
+                self.selected_file = None
+                self.encrypt_button.setVisible(False)
 
     def retrieve_file(self):
         if self.check_password():
             password = self.password_input.text()
             key = generate_key(password)
             fernet = Fernet(key)
-            options = QFileDialog.Options()
-            file_path, _ = QFileDialog.getOpenFileName(self, "Select a file to retrieve", "", "Encrypted Files (*.encrypted);;All Files (*)", options=options)
-            if file_path:
-                decrypt_file(file_path, fernet)
-                QtWidgets.QMessageBox.information(self, "Success", f"File {file_path} decrypted and retrieved.")
+            if self.selected_file:
+                decrypt_file(self.selected_file, fernet)
+                QtWidgets.QMessageBox.information(self, "Success", f"File {self.selected_file} decrypted and retrieved.")
+                self.selected_file = None
+                self.decrypt_button.setVisible(False)
 
     def check_password(self):
         entered_password = self.password_input.text()
@@ -121,7 +140,7 @@ class App(QtWidgets.QWidget):
     def show_password_tips(self):
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Warning)
-        msgBox.setWindowTitle("Security Tips")
+        msgBox.setWindowTitle("Kesh | Security Tips")
         msgBox.setText("Welcome! You have successfully created your password.\n\nHere are some tips to keep your password secure:\n- Never share your password with anyone.\n- Use a unique password for this software.\n- Avoid using obvious or easy-to-guess passwords.\n- Use a combination of uppercase and lowercase letters, numbers, and symbols to create a strong password.\n- Memorize your password and do not write it down on paper or store it in an insecure location.\n- Regularly change your password to enhance security.\n\nClick 'Ok' to continue.")
         msgBox.setStandardButtons(QMessageBox.Ok)
         msgBox.setStyleSheet(open('popup_style.css').read())  # Using style for pop-ups
@@ -130,7 +149,7 @@ class App(QtWidgets.QWidget):
 class PasswordDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Create Password')
+        self.setWindowTitle('Kesh | Create Password')
         self.setFixedSize(300, 150)
 
         layout = QtWidgets.QVBoxLayout()
@@ -152,9 +171,9 @@ class PasswordDialog(QtWidgets.QDialog):
     def get_password(self):
         return self.password_input.text()
 
-
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
+    app.setWindowIcon(QIcon('favicon.ico'))
     ex = App()
     ex.show()
     sys.exit(app.exec_())
