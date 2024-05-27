@@ -21,13 +21,13 @@ Kesh is a secure file storage application that allows you to encrypt and decrypt
 ## Screenshots
 
 ### Main Interface
-![Main Interface](https://raw.githubusercontent.com/Lippou/KeshSecureFiles/main/img/interface_principale.png)
+![Main Interface](https://cdn.discordapp.com/attachments/1181896459147296829/1244605739666771998/Capture_decran_2024-05-27_122739.png?ex=6655b8eb&is=6654676b&hm=9e0520d4127c446fa3a7c330aedff6db285e13e7818c4010245b8f976f9b75ee&)
 
 ### File Encryption
-![File Encryption](https://raw.githubusercontent.com/Lippou/KeshSecureFiles/main/img/cryptage_fichier.png)
+![File Encryption](https://cdn.discordapp.com/attachments/1181896459147296829/1244605542530285620/encryption.gif?ex=6655b8bc&is=6654673c&hm=e72931267db1580c9dbbafd43511cb735f7f70c447d4294885bb68469f272c5f&)
 
 ### File Decryption
-![File Decryption](https://raw.githubusercontent.com/Lippou/KeshSecureFiles/main/img/decryptage_fichier.png)
+![File Decryption](https://cdn.discordapp.com/attachments/1181896459147296829/1244605580858101780/decryption.gif?ex=6655b8c6&is=66546746&hm=e19a54e5dcd690ba441decadff14c8b808abb1e7e5abbd1f1d3a8b416ec28cf4&)
 
 ---
 
@@ -47,7 +47,7 @@ Kesh is a secure file storage application that allows you to encrypt and decrypt
    pip install -r requirements.txt
    ```
 
-4. Launch the application by running the `main.py` file.
+4. Launch the application by running the `keshsecure.py` file.
 
    ```
    python main.py
