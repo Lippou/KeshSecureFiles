@@ -36,7 +36,7 @@ Kesh is a secure file storage application that allows you to encrypt and decrypt
 1. Clone this repository to your local machine.
    
    ```
-   git clone https://github.com/Lippou/KeshSecureFiles.git
+   git clone https://github.com/Lippou/KeshSecureFiles
    ```
 
 2. Ensure you have Python 3 installed on your system.
