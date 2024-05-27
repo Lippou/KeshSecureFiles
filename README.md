@@ -50,7 +50,7 @@ Kesh is a secure file storage application that allows you to encrypt and decrypt
 4. Launch the application by running the `keshsecure.py` file.
 
    ```
-   python main.py
+   python keshsecure.py
    ```
 
 ---
