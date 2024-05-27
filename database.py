@@ -1,7 +1,17 @@
 import sqlite3
+import os
 
 def init_db():
-    conn = sqlite3.connect('secure_files.db')
+    # Définir le chemin de la base de données dans le répertoire utilisateur
+    db_dir = os.path.expanduser("~\\KeshSecureFiles")
+    db_path = os.path.join(db_dir, 'secure_files.db')
+
+    # Vérifier si le répertoire existe, sinon le créer
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir)
+
+    # Connexion à la base de données
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS files (
@@ -14,7 +24,10 @@ def init_db():
     conn.close()
 
 def add_file_to_db(filename, encrypted_filename):
-    conn = sqlite3.connect('secure_files.db')
+    db_dir = os.path.expanduser("~\\KeshSecureFiles")
+    db_path = os.path.join(db_dir, 'secure_files.db')
+
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO files (filename, encrypted_filename)
@@ -24,7 +37,10 @@ def add_file_to_db(filename, encrypted_filename):
     conn.close()
 
 def get_encrypted_filename(filename):
-    conn = sqlite3.connect('secure_files.db')
+    db_dir = os.path.expanduser("~\\KeshSecureFiles")
+    db_path = os.path.join(db_dir, 'secure_files.db')
+
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('''
         SELECT encrypted_filename FROM files WHERE filename = ?
