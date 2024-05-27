@@ -143,7 +143,6 @@ class App(QtWidgets.QWidget):
         msgBox.setWindowTitle("Kesh | Create Password")
         msgBox.setText("Welcome! To secure your files, please create a password.")
         msgBox.setStandardButtons(QMessageBox.Ok)
-        msgBox.setStyleSheet(open('styles/popup_style.css').read())  
         msgBox.exec_()
 
         while not self.password_set:
@@ -231,10 +230,12 @@ class App(QtWidgets.QWidget):
             kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1, backend=default_backend())
             try:
                 kdf.verify(entered_password.encode(), stored_key)
+                self.password_attempts = 5
                 return True
-            except Exception as e:
+            except Exception:
                 self.password_attempts -= 1
                 if self.password_attempts <= 0:
+                    self.delete_encrypted_files()
                     self.show_locked_message()
                 else:
                     QtWidgets.QMessageBox.warning(self, "Error", f"Invalid password. Attempts remaining: {self.password_attempts}.")
@@ -244,7 +245,7 @@ class App(QtWidgets.QWidget):
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Critical)
         msgBox.setWindowTitle("Kesh | Locked")
-        msgBox.setText("Too many invalid password attempts. The application is now locked.")
+        msgBox.setText("Too many invalid password attempts. The application is now locked and all encrypted files have been deleted.")
         msgBox.setStandardButtons(QMessageBox.Ok)
         msgBox.setStyleSheet(open('styles/popup_style.css').read())  
         msgBox.exec_()
@@ -252,12 +253,15 @@ class App(QtWidgets.QWidget):
 
     def show_password_tips(self):
         tips = """
-        <h2>Password Tips</h2>
+        <h3>Password Safety Tips:</h3>
         <ul>
-            <li>Use at least 8 characters.</li>
-            <li>Include both uppercase and lowercase letters.</li>
-            <li>Include at least one number.</li>
-            <li>Include at least one special character (e.g., !@#$%^&*).</li>
+            <li>Store your password in a secure place.</li>
+            <li>Do not share your password with anyone.</li>
+            <li>Use a password manager to store your passwords safely.</li>
+            <li>Write down your password and store it in a safe place.</li>
+            <li>Avoid using the same password for multiple accounts.</li>
+            <li>Remember, if you lose your password, it cannot be recovered.</li>
+            <li>If the password is entered incorrectly more than 5 times, all encrypted files will be deleted.</li>
         </ul>
         """
         msgBox = QMessageBox()
@@ -321,11 +325,17 @@ class App(QtWidgets.QWidget):
         with open(original_file_path, 'wb') as file:
             file.write(plaintext)
 
+    def delete_encrypted_files(self):
+        for file in os.listdir(ENCRYPTED_FILES_DIR):
+            file_path = os.path.join(ENCRYPTED_FILES_DIR, file)
+            if file.endswith(".encrypted"):
+                os.remove(file_path)
+
 class PasswordDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Create Password")
-        self.setFixedSize(300, 200)
+        self.setFixedSize(300, 250)
 
         layout = QVBoxLayout()
 
