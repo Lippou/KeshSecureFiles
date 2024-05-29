@@ -1,4 +1,4 @@
-# Kesh | Secure File Storage
+# ![Logo]([https://votre_url_du_logo](https://cdn.discordapp.com/attachments/1181896459147296829/1245448291118747658/favicon.png?ex=6658c99b&is=6657781b&hm=9d2461ebe2130fdb2116ecaf96dab336a4dd668ca89cec6c30ee0f1c9f4adb90&)) Kesh | Secure File Storage
 
 Kesh is a secure file storage application that allows you to encrypt and decrypt your sensitive files with ease. With Kesh, you can protect your confidential data while enjoying a user-friendly and intuitive interface.
 
