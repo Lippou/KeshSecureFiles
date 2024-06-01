@@ -180,7 +180,7 @@ class App(QtWidgets.QWidget):
             version = version_file.read().strip()
 
         # Message de développement
-        self.dev_message_label = QLabel(f"This software is in development and will be further improved.\nVersion: {version}.")
+        self.dev_message_label = QLabel(f"This software is in development and will be further improved.\nVersion: {version}")
         self.dev_message_label.setObjectName("dev_message_label")
         layout.addWidget(self.dev_message_label)
         
@@ -302,6 +302,37 @@ class App(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.warning(self, "Error", f"Incorrect password. {self.password_attempts} attempts remaining.")
                 self.password_input.clear()
                 return False
+
+    def show_locked_message(self):
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Critical)
+        msgBox.setWindowTitle("Kesh | Locked")
+        msgBox.setText("Too many invalid password attempts. The application is now locked and all encrypted files have been deleted.")
+        msgBox.setStandardButtons(QMessageBox.Ok)
+        msgBox.setStyleSheet(open('styles/popup_style.css').read())  
+        msgBox.exec_()
+        sys.exit()
+
+    def show_password_tips(self):
+        tips = """
+        <h3>Password Safety Tips:</h3>
+        <ul>
+            <li>Store your password in a secure place.</li>
+            <li>Do not share your password with anyone.</li>
+            <li>Use a password manager to store your passwords safely.</li>
+            <li>Write down your password and store it in a safe place.</li>
+            <li>Avoid using the same password for multiple accounts.</li>
+            <li>Remember, if you lose your password, it cannot be recovered.</li>
+            <li>If the password is entered incorrectly more than 5 times, all encrypted files will be deleted.</li>
+        </ul>
+        """
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Information)
+        msgBox.setWindowTitle("Kesh | Password Tips")
+        msgBox.setText(tips)
+        msgBox.setStandardButtons(QMessageBox.Ok)
+        msgBox.setStyleSheet(open('styles/popup_style.css').read())  
+        msgBox.exec_()
 
     def change_password(self):
         if self.check_password():
