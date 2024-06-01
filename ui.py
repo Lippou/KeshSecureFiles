@@ -1,15 +1,19 @@
 import os
 import sys
 import base64
+import requests
+import json
 import re
 import subprocess
+from PyQt5.QtCore import Qt, QSize
 from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtGui import QFont, QIcon
-from PyQt5.QtWidgets import QMessageBox, QDialog, QFileDialog, QLabel, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy
+from PyQt5.QtGui import QFont, QIcon, QPixmap, QMovie
+from PyQt5.QtWidgets import QMessageBox, QDialog, QFileDialog, QLabel, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from PyQt5.QtWidgets import QApplication
 
 ENCRYPTED_FILES_DIR = "encrypted_files"
 CONFIG_FILE = os.path.join(os.getenv('APPDATA'), '.config_secure_storage', 'config.dat')
@@ -25,6 +29,13 @@ class App(QtWidgets.QWidget):
         self.selected_file = None
         self.initUI()
 
+    def check_for_updates(self, current_version):
+        response = requests.get('https://api.github.com/repos/Lippou/KeshSecureFiles/releases/latest')
+        latest_version = response.json()['tag_name']
+
+        if latest_version > current_version:
+            self.dev_message_label.setText(f'''This software is in development and will be further improved.<br>Version: {current_version}<br><a href="https://github.com/Lippou/KeshSecureFiles/releases/latest">Update available: {latest_version}</a>''')        
+            self.dev_message_label.setOpenExternalLinks(True)
     def initUI(self):
         self.setWindowTitle('Kesh | Secure File Storage')
         self.setWindowIcon(QIcon('img/favicon.ico'))
@@ -59,7 +70,6 @@ class App(QtWidgets.QWidget):
                 margin-top: 20px;
             }
         """)
-
         layout = QVBoxLayout()
 
         # Ajouter le logo
@@ -122,26 +132,66 @@ class App(QtWidgets.QWidget):
         # Ajouter un espaceur
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
+        # Créer un layout horizontal pour les GIFs
+        gif_layout = QHBoxLayout()
+
+        # Ajouter le GIF d'encryption
+        encryption_layout = QVBoxLayout()
+        encryption_title = QLabel("Example Encryption :")
+        encryption_title.setStyleSheet("font-size: 12px")  # Augmenter la taille de la police
+        encryption_gif = QLabel()
+        movie = QMovie("./img/encryption.gif")
+        movie.setScaledSize(QSize(300, 170))  # Redimensionner le GIF
+        encryption_gif.setMovie(movie)
+        encryption_gif.setObjectName("encryption_gif")
+        movie.start()  # Démarrer l'animation
+        encryption_layout.addWidget(encryption_title)
+        encryption_layout.addWidget(encryption_gif)
+        gif_layout.addLayout(encryption_layout)
+        
+        # Ajouter le GIF de decryption
+        decryption_layout = QVBoxLayout()
+        decryption_title = QLabel("Example Decryption :")
+        decryption_title.setStyleSheet("font-size: 12px")  # Augmenter la taille de la police
+        decryption_gif = QLabel()
+        movie = QMovie("./img/decryption.gif")
+        movie.setScaledSize(QSize(300, 170))  # Redimensionner le GIF
+        decryption_gif.setMovie(movie)
+        decryption_gif.setObjectName("decryption_gif")
+        gif_path = "./img/encryption.gif"  # Define the gif_path variable
+        movie.start()  # Démarrer l'animation
+        decryption_layout.addWidget(decryption_title)
+        decryption_layout.addWidget(decryption_gif)
+        gif_layout.addLayout(decryption_layout)
+
+        # Ajouter le layout des GIFs au layout principal
+        layout.addLayout(gif_layout)
+
         # Pied de page
-        self.copyright_label = QLabel("© Kesh 2024. All rights reserved.")
+        self.copyright_label = QLabel()
+        self.copyright_label.setOpenExternalLinks(True)  # Permettre l'ouverture de liens externes
+        self.copyright_label.setText('<a href="https://github.com/Lippou/KeshSecureFiles/blob/main/LICENSE">© Kesh 2024. All rights reserved.</a>')
         self.copyright_label.setObjectName("copyright_label")
         layout.addWidget(self.copyright_label)
 
+        
+        # Lire la version du fichier
+        with open('.version', 'r') as version_file:
+            version = version_file.read().strip()
+
         # Message de développement
-        self.dev_message_label = QLabel("This software is in development and will be further improved.")
+        self.dev_message_label = QLabel(f"This software is in development and will be further improved.\nVersion: {version}.")
         self.dev_message_label.setObjectName("dev_message_label")
         layout.addWidget(self.dev_message_label)
-
+        
+        self.check_for_updates(version)
+        
         self.setLayout(layout)
-
         self.encrypt_button.setVisible(False)
         self.decrypt_button.setVisible(False)
-
         self.password_set = self.check_password_set()
-
         if not self.password_set:
             self.create_password()
-
         self.adjust_window_size()
 
     def adjust_window_size(self):
