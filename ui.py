@@ -2,6 +2,7 @@ import os
 import sys
 import base64
 import re
+import subprocess
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import QMessageBox, QDialog, QFileDialog, QLabel, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy
@@ -64,9 +65,17 @@ class App(QtWidgets.QWidget):
         # Ajouter le logo
         logo_label = QLabel(self)
         logo_pixmap = QtGui.QPixmap('img/favicon.png')
+        logo_pixmap = logo_pixmap.scaled(200, 200, QtCore.Qt.KeepAspectRatio)  # Ajuster la taille du logo
         logo_label.setPixmap(logo_pixmap)
+        logo_label.setAlignment(QtCore.Qt.AlignCenter)  # Centrer le logo
         logo_label.setObjectName("logo_label")
         layout.addWidget(logo_label)
+
+        # Ajouter un titre en dessous du logo
+        title_label = QLabel("Kesh Secure Files")
+        title_label.setAlignment(QtCore.Qt.AlignCenter)  # Centrer le titre
+        title_label.setStyleSheet("font-size: 24px")  # Augmenter la taille de la police
+        layout.addWidget(title_label)
 
         # Entrée de mot de passe
         self.password_label = QLabel("Enter Password:")
@@ -80,16 +89,19 @@ class App(QtWidgets.QWidget):
         self.encrypt_button = QtWidgets.QPushButton("Encrypt File")
         self.decrypt_button = QtWidgets.QPushButton("Decrypt File")
         self.change_password_button = QtWidgets.QPushButton("Change Password")
+        self.open_encrypted_dir_button = QtWidgets.QPushButton("Open Encrypted Files Directory")
         self.select_file_button.setObjectName("action_button")
         self.encrypt_button.setObjectName("action_button")
         self.decrypt_button.setObjectName("action_button")
         self.change_password_button.setObjectName("action_button")
+        self.open_encrypted_dir_button.setObjectName("action_button")
 
         # Connecter les boutons aux fonctions
         self.select_file_button.clicked.connect(self.select_file)
         self.encrypt_button.clicked.connect(self.add_file)
         self.decrypt_button.clicked.connect(self.retrieve_file)
         self.change_password_button.clicked.connect(self.change_password)
+        self.open_encrypted_dir_button.clicked.connect(self.open_encrypted_files_directory)
 
         layout.addWidget(self.password_label)
         layout.addWidget(self.password_input)
@@ -99,6 +111,7 @@ class App(QtWidgets.QWidget):
         button_layout.addWidget(self.encrypt_button)
         button_layout.addWidget(self.decrypt_button)
         button_layout.addWidget(self.change_password_button)
+        button_layout.addWidget(self.open_encrypted_dir_button)
         layout.addLayout(button_layout)
 
         # Étiquette d'information
@@ -132,7 +145,7 @@ class App(QtWidgets.QWidget):
         self.adjust_window_size()
 
     def adjust_window_size(self):
-        self.setFixedSize(500, 600)
+        self.setFixedSize(600, 600)
 
     def check_password_set(self):
         return os.path.isfile(CONFIG_FILE)
@@ -230,47 +243,15 @@ class App(QtWidgets.QWidget):
             kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1, backend=default_backend())
             try:
                 kdf.verify(entered_password.encode(), stored_key)
-                self.password_attempts = 5
                 return True
-            except Exception:
+            except:
                 self.password_attempts -= 1
-                if self.password_attempts <= 0:
-                    self.delete_encrypted_files()
-                    self.show_locked_message()
-                else:
-                    QtWidgets.QMessageBox.warning(self, "Error", f"Invalid password. Attempts remaining: {self.password_attempts}.")
+                if self.password_attempts == 0:
+                    QtWidgets.QMessageBox.critical(self, "Error", "Too many failed attempts. The application will exit.")
+                    sys.exit()
+                QtWidgets.QMessageBox.warning(self, "Error", f"Incorrect password. {self.password_attempts} attempts remaining.")
+                self.password_input.clear()
                 return False
-
-    def show_locked_message(self):
-        msgBox = QMessageBox()
-        msgBox.setIcon(QMessageBox.Critical)
-        msgBox.setWindowTitle("Kesh | Locked")
-        msgBox.setText("Too many invalid password attempts. The application is now locked and all encrypted files have been deleted.")
-        msgBox.setStandardButtons(QMessageBox.Ok)
-        msgBox.setStyleSheet(open('styles/popup_style.css').read())  
-        msgBox.exec_()
-        sys.exit()
-
-    def show_password_tips(self):
-        tips = """
-        <h3>Password Safety Tips:</h3>
-        <ul>
-            <li>Store your password in a secure place.</li>
-            <li>Do not share your password with anyone.</li>
-            <li>Use a password manager to store your passwords safely.</li>
-            <li>Write down your password and store it in a safe place.</li>
-            <li>Avoid using the same password for multiple accounts.</li>
-            <li>Remember, if you lose your password, it cannot be recovered.</li>
-            <li>If the password is entered incorrectly more than 5 times, all encrypted files will be deleted.</li>
-        </ul>
-        """
-        msgBox = QMessageBox()
-        msgBox.setIcon(QMessageBox.Information)
-        msgBox.setWindowTitle("Kesh | Password Tips")
-        msgBox.setText(tips)
-        msgBox.setStandardButtons(QMessageBox.Ok)
-        msgBox.setStyleSheet(open('styles/popup_style.css').read())  
-        msgBox.exec_()
 
     def change_password(self):
         if self.check_password():
@@ -285,8 +266,6 @@ class App(QtWidgets.QWidget):
                     with open(CONFIG_FILE, 'w') as file:
                         file.write(hashed_password)
                     QtWidgets.QMessageBox.information(self, "Success", "Password changed successfully.")
-                else:
-                    QtWidgets.QMessageBox.warning(self, "Error", "New password does not meet the required conditions.")
 
     def generate_key(self, password):
         salt = os.urandom(16)
@@ -294,103 +273,98 @@ class App(QtWidgets.QWidget):
         key = kdf.derive(password.encode())
         return key, salt
 
+    def get_salt_from_file(self, encrypted_file_path):
+        with open(encrypted_file_path, 'rb') as f:
+            salt = f.read(16)
+        return salt
+
     def generate_key_with_salt(self, password, salt):
         kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1, backend=default_backend())
         key = kdf.derive(password.encode())
         return key
 
-    def get_salt_from_file(self, file_path):
-        with open(file_path, 'rb') as file:
-            return file.read(16)
-
     def encrypt_file(self, file_path, key, salt, output_file_path):
-        with open(file_path, 'rb') as file:
-            plaintext = file.read()
+        with open(file_path, 'rb') as f:
+            plaintext = f.read()
         iv = os.urandom(16)
         cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
         encryptor = cipher.encryptor()
         ciphertext = encryptor.update(plaintext) + encryptor.finalize()
-        with open(output_file_path, 'wb') as file:
-            file.write(salt + iv + ciphertext)
+        with open(output_file_path, 'wb') as f:
+            f.write(salt + iv + ciphertext)
 
-    def decrypt_file(self, file_path, key):
-        with open(file_path, 'rb') as file:
-            salt = file.read(16)
-            iv = file.read(16)
-            ciphertext = file.read()
+    def decrypt_file(self, encrypted_file_path, key):
+        with open(encrypted_file_path, 'rb') as f:
+            salt = f.read(16)
+            iv = f.read(16)
+            ciphertext = f.read()
         cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
         decryptor = cipher.decryptor()
         plaintext = decryptor.update(ciphertext) + decryptor.finalize()
-        original_file_path = file_path.replace(".encrypted", "")
-        with open(original_file_path, 'wb') as file:
-            file.write(plaintext)
+        original_file_path = encrypted_file_path[:-10]
+        with open(original_file_path, 'wb') as f:
+            f.write(plaintext)
 
-    def delete_encrypted_files(self):
-        for file in os.listdir(ENCRYPTED_FILES_DIR):
-            file_path = os.path.join(ENCRYPTED_FILES_DIR, file)
-            if file.endswith(".encrypted"):
-                os.remove(file_path)
+    def open_encrypted_files_directory(self):
+        encrypted_files_path = os.path.abspath(ENCRYPTED_FILES_DIR)
+        if sys.platform == 'win32':
+            os.startfile(encrypted_files_path)
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['open', encrypted_files_path])
+        else:
+            subprocess.Popen(['xdg-open', encrypted_files_path])
 
 class PasswordDialog(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Create Password")
-        self.setFixedSize(300, 250)
+        self.setWindowTitle("Kesh | Create Password")
+        self.setStyleSheet("""
+            QLabel {
+                font-size: 14px;
+                margin-bottom: 5px;
+            }
+            QLineEdit {
+                font-size: 12px;
+                padding: 5px;
+                margin-bottom: 10px;
+            }
+            QPushButton {
+                font-size: 12px;
+                padding: 5px 10px;
+                background-color: #007BFF;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #0056b3;
+            }
+        """)
 
-        layout = QVBoxLayout()
-
-        self.label = QLabel("Create a new password:")
+        self.password_label = QLabel("Enter new password:")
         self.password_input = QtWidgets.QLineEdit()
         self.password_input.setEchoMode(QtWidgets.QLineEdit.Password)
-        self.password_input.setFont(QFont('Arial', 12))
-        
-        self.confirm_label = QLabel("Confirm password:")
-        self.confirm_input = QtWidgets.QLineEdit()
-        self.confirm_input.setEchoMode(QtWidgets.QLineEdit.Password)
-        self.confirm_input.setFont(QFont('Arial', 12))
-
-        self.conditions_label = QLabel("""
-        <h3>Password Conditions:</h3>
-        <ul>
-            <li>At least 8 characters long.</li>
-            <li>Includes uppercase and lowercase letters.</li>
-            <li>Includes at least one number.</li>
-            <li>Includes at least one special character.</li>
-        </ul>
-        """)
-        self.conditions_label.setWordWrap(True)
-        
+        self.password_confirm_label = QLabel("Confirm new password:")
+        self.password_confirm_input = QtWidgets.QLineEdit()
+        self.password_confirm_input.setEchoMode(QtWidgets.QLineEdit.Password)
         self.submit_button = QtWidgets.QPushButton("Submit")
-        self.submit_button.clicked.connect(self.submit)
 
-        layout.addWidget(self.label)
+        layout = QVBoxLayout()
+        layout.addWidget(self.password_label)
         layout.addWidget(self.password_input)
-        layout.addWidget(self.confirm_label)
-        layout.addWidget(self.confirm_input)
-        layout.addWidget(self.conditions_label)
+        layout.addWidget(self.password_confirm_label)
+        layout.addWidget(self.password_confirm_input)
         layout.addWidget(self.submit_button)
 
         self.setLayout(layout)
 
-    def submit(self):
-        if self.password_input.text() == self.confirm_input.text():
-            if self.is_password_valid(self.password_input.text()):
-                self.accept()
-            else:
-                QtWidgets.QMessageBox.warning(self, "Error", "Password does not meet the required conditions.")
+        self.submit_button.clicked.connect(self.verify_passwords)
+
+    def verify_passwords(self):
+        if self.password_input.text() == self.password_confirm_input.text():
+            self.accept()
         else:
             QtWidgets.QMessageBox.warning(self, "Error", "Passwords do not match.")
-
-    def is_password_valid(self, password):
-        if len(password) < 8:
-            return False
-        if not re.search(r"[A-Za-z]", password):
-            return False
-        if not re.search(r"[0-9]", password):
-            return False
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
-            return False
-        return True
 
     def get_password(self):
         return self.password_input.text()
