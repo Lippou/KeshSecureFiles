@@ -1,4 +1,4 @@
 PyQt5==5.15.10
 PyQtWebEngine==5.15.6
-cryptography==42.0.7
+cryptography==43.0.1
 requests==2.32.3
